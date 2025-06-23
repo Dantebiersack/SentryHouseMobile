@@ -17,26 +17,30 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
+import com.angel.sentryhouse.utils.SensorImageStore
 import com.angel.sentryhouse.utils.createImageUri
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
 
 data class SensorItem(
     val id: Int,
     val name: String,
-    var isClosed: Boolean = true,
-    var hasLeak: Boolean = false,
-    var imageUri: Uri? = null
+    val imageUri: Uri? = null,
+    val isClosed: Boolean = false,
+    val hasLeak: Boolean = false
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GasScreen(navController: NavController) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
     var sensorList by remember {
         mutableStateOf(
             listOf(
@@ -46,6 +50,14 @@ fun GasScreen(navController: NavController) {
                 SensorItem(4, "Sensor 4")
             )
         )
+    }
+
+    // Cargar imágenes guardadas
+    LaunchedEffect(Unit) {
+        sensorList = sensorList.map { sensor ->
+            val uri = SensorImageStore.getImageUri(context, sensor.id).firstOrNull()
+            if (uri != null) sensor.copy(imageUri = uri) else sensor
+        }
     }
 
     var selectedSensor by remember { mutableStateOf<SensorItem?>(null) }
@@ -60,6 +72,9 @@ fun GasScreen(navController: NavController) {
                 sensorList = sensorList.map {
                     if (it.id == sensor.id) it.copy(imageUri = uri) else it
                 }
+                scope.launch {
+                    SensorImageStore.saveImageUri(context, sensor.id, uri)
+                }
             }
         }
     }
@@ -71,6 +86,9 @@ fun GasScreen(navController: NavController) {
             selectedSensor?.let { sensor ->
                 sensorList = sensorList.map {
                     if (it.id == sensor.id) it.copy(imageUri = tempCameraUri) else it
+                }
+                scope.launch {
+                    SensorImageStore.saveImageUri(context, sensor.id, tempCameraUri!!)
                 }
             }
         }
@@ -96,7 +114,6 @@ fun GasScreen(navController: NavController) {
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
-            // Botón único (Afectación / Cerrar todos)
             Button(
                 onClick = {
                     sensorList = sensorList.map { it.copy(isClosed = true) }

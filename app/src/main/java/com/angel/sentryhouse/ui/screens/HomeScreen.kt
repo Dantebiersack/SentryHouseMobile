@@ -27,18 +27,23 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    // Datos simulados
+    // Simulación de datos
+    val aguaPrincipal = 60f
+    val aguaFuga = 40f
+    val gasPrincipal = 75f
+    val gasFuga = 25f
+
     val aguaData = PieChartData(
         slices = listOf(
-            Slice(60f, Color(0xFF42A5F5)),
-            Slice(40f, Color(0xFF90CAF9))
+            Slice(aguaPrincipal, Color(0xFF42A5F5)),
+            Slice(aguaFuga, Color(0xFF90CAF9))
         )
     )
 
     val gasData = PieChartData(
         slices = listOf(
-            Slice(75f, Color(0xFFFF7043)),
-            Slice(25f, Color(0xFFFFAB91))
+            Slice(gasPrincipal, Color(0xFFFF7043)),
+            Slice(gasFuga, Color(0xFFFFAB91))
         )
     )
 
@@ -80,6 +85,7 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
                 Text("Bienvenido", style = MaterialTheme.typography.headlineSmall)
                 Spacer(modifier = Modifier.height(24.dp))
 
+                // ---------- Agua ----------
                 Text("Consumo de Agua", style = MaterialTheme.typography.titleMedium)
                 PieChart(
                     pieChartData = aguaData,
@@ -89,9 +95,20 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
                     animation = simpleChartAnimation(),
                     sliceDrawer = SimpleSliceDrawer()
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("• Consumo normal: $aguaPrincipal%", color = Color(0xFF42A5F5))
+                Text("• Posible fuga: $aguaFuga%", color = Color(0xFF90CAF9))
+                if (aguaFuga > 30) {
+                    Text(
+                        "⚠️ Posible fuga detectada",
+                        color = Color.Red,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(32.dp))
 
+                // ---------- Gas ----------
                 Text("Consumo de Gas", style = MaterialTheme.typography.titleMedium)
                 PieChart(
                     pieChartData = gasData,
@@ -101,7 +118,18 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
                     animation = simpleChartAnimation(),
                     sliceDrawer = SimpleSliceDrawer()
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("• Consumo normal: $gasPrincipal%", color = Color(0xFFFF7043))
+                Text("• Posible fuga: $gasFuga%", color = Color(0xFFFFAB91))
+                if (gasFuga > 20) {
+                    Text(
+                        "⚠️ Posible fuga detectada",
+                        color = Color.Red,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             }
         }
     }
 }
+

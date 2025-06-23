@@ -61,5 +61,5 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("com.github.tehras:charts:0.2.2-alpha")
     implementation("io.coil-kt:coil-compose:2.5.0")
-
+    implementation(libs.androidx.datastore.preferences)
 }
