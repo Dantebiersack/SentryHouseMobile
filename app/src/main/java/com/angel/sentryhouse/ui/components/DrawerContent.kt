@@ -51,5 +51,14 @@ fun DrawerContent(navController: NavController, drawerState: DrawerState, scope:
                 scope.launch { drawerState.close() }
             }
         )
+        NavigationDrawerItem(
+            label = { Text("Configuración") },
+            selected = false,
+            onClick = {
+                navController.navigate("config")
+                scope.launch { drawerState.close() }
+            }
+        )
+
     }
 }

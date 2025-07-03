@@ -11,17 +11,20 @@ private val Context.dataStore by preferencesDataStore("sensor_images")
 
 object SensorImageStore {
 
-    private fun getKeyForSensor(sensorId: Int) = stringPreferencesKey("sensor_image_$sensorId")
+    // Clave única basada en pantalla + sensor
+    private fun getKeyForSensor(screenName: String, sensorId: Int): Preferences.Key<String> {
+        return stringPreferencesKey("${screenName}_sensor_$sensorId")
+    }
 
-    suspend fun saveImageUri(context: Context, sensorId: Int, uri: Uri) {
+    suspend fun saveImageUri(context: Context, screenName: String, sensorId: Int, uri: Uri) {
         context.dataStore.edit { prefs ->
-            prefs[getKeyForSensor(sensorId)] = uri.toString()
+            prefs[getKeyForSensor(screenName, sensorId)] = uri.toString()
         }
     }
 
-    fun getImageUri(context: Context, sensorId: Int): Flow<Uri?> {
+    fun getImageUri(context: Context, screenName: String, sensorId: Int): Flow<Uri?> {
         return context.dataStore.data.map { prefs ->
-            prefs[getKeyForSensor(sensorId)]?.let { Uri.parse(it) }
+            prefs[getKeyForSensor(screenName, sensorId)]?.let { Uri.parse(it) }
         }
     }
 }

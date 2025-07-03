@@ -62,4 +62,8 @@ dependencies {
     implementation("com.github.tehras:charts:0.2.2-alpha")
     implementation("io.coil-kt:coil-compose:2.5.0")
     implementation(libs.androidx.datastore.preferences)
+
+    implementation ("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation ("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation ("androidx.appcompat:appcompat:1.6.1")
 }

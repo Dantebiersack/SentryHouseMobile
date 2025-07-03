@@ -5,20 +5,21 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.angel.sentryhouse.RetrofitClient.getApi
 import com.angel.sentryhouse.ui.components.DrawerContent
 import com.github.tehras.charts.piechart.PieChart
 import com.github.tehras.charts.piechart.PieChartData
 import com.github.tehras.charts.piechart.PieChartData.Slice
 import com.github.tehras.charts.piechart.animation.simpleChartAnimation
 import com.github.tehras.charts.piechart.renderer.SimpleSliceDrawer
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,23 +28,39 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    // Simulación de datos
     val aguaPrincipal = 60f
     val aguaFuga = 40f
-    val gasPrincipal = 75f
-    val gasFuga = 25f
+    var lecturaGas by remember { mutableStateOf(0) }
+    val context = LocalContext.current
 
-    val aguaData = PieChartData(
-        slices = listOf(
-            Slice(aguaPrincipal, Color(0xFF42A5F5)),
-            Slice(aguaFuga, Color(0xFF90CAF9))
-        )
-    )
-
+    // Actualiza lectura del gas cada 5 segundos
+    LaunchedEffect(Unit) {
+        while (true) {
+            try {
+                val api = getApi(context)
+                val response = api.obtenerGas()
+                lecturaGas = response.valor
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            delay(5000)
+        }
+    }
+// Procesamiento de lectura del gas en porcentaje
+    val gasLectura = lecturaGas.toFloat()
+    val gasFuga = (gasLectura / 1023f) * 100f
+    val gasPrincipal = 100f - gasFuga
+    // Datos para las gráficas circulares
     val gasData = PieChartData(
         slices = listOf(
             Slice(gasPrincipal, Color(0xFFFF7043)),
             Slice(gasFuga, Color(0xFFFFAB91))
+        )
+    )
+    val aguaData = PieChartData(
+        slices = listOf(
+            Slice(aguaPrincipal, Color(0xFF42A5F5)),
+            Slice(aguaFuga, Color(0xFF90CAF9))
         )
     )
 
@@ -107,8 +124,7 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
                 }
 
                 Spacer(modifier = Modifier.height(32.dp))
-
-                // ---------- Gas ----------
+                //  Visualización Gas
                 Text("Consumo de Gas", style = MaterialTheme.typography.titleMedium)
                 PieChart(
                     pieChartData = gasData,
@@ -119,8 +135,8 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
                     sliceDrawer = SimpleSliceDrawer()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("• Consumo normal: $gasPrincipal%", color = Color(0xFFFF7043))
-                Text("• Posible fuga: $gasFuga%", color = Color(0xFFFFAB91))
+                Text("• Consumo normal: ${"%.2f".format(gasPrincipal)}%", color = Color(0xFFFF7043))
+                Text("• Posible fuga: ${"%.2f".format(gasFuga)}%", color = Color(0xFFFFAB91))
                 if (gasFuga > 20) {
                     Text(
                         "⚠️ Posible fuga detectada",
@@ -132,4 +148,3 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
         }
     }
 }
-

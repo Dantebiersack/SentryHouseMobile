@@ -1,6 +1,6 @@
 package com.angel.sentryhouse.ui.screens
 
-import android.R
+import com.angel.sentryhouse.R
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,7 +27,7 @@ fun LoginScreen(navController: NavController) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Image(
-                painter = painterResource(id = R.drawable.star_on),
+                painter = painterResource(id = R.drawable.logosh),
                 contentDescription = "SentryHouse Logo",
                 modifier = Modifier
                     .size(120.dp)

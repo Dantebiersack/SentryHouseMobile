@@ -47,7 +47,7 @@ fun AguaScreen(navController: NavController) {
     // Cargar imágenes guardadas
     LaunchedEffect(Unit) {
         sensorList = sensorList.map { sensor ->
-            val uri = SensorImageStore.getImageUri(context, sensor.id).firstOrNull()
+            val uri = SensorImageStore.getImageUri(context, "agua", sensor.id).firstOrNull()
             if (uri != null) sensor.copy(imageUri = uri) else sensor
         }
     }
@@ -57,19 +57,20 @@ fun AguaScreen(navController: NavController) {
     var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
 
     val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
+            contract = ActivityResultContracts.GetContent()
+            ) { uri ->
         uri?.let {
             selectedSensor?.let { sensor ->
                 sensorList = sensorList.map {
                     if (it.id == sensor.id) it.copy(imageUri = uri) else it
                 }
                 scope.launch {
-                    SensorImageStore.saveImageUri(context, sensor.id, uri)
+                    SensorImageStore.saveImageUri(context, "agua", sensor.id, uri)
                 }
             }
         }
     }
+
 
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
@@ -80,7 +81,7 @@ fun AguaScreen(navController: NavController) {
                     if (it.id == sensor.id) it.copy(imageUri = tempCameraUri) else it
                 }
                 scope.launch {
-                    SensorImageStore.saveImageUri(context, sensor.id, tempCameraUri!!)
+                    SensorImageStore.saveImageUri(context, "agua", sensor.id, tempCameraUri!!)
                 }
             }
         }

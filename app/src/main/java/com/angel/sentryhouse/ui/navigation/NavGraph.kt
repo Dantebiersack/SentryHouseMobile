@@ -28,5 +28,9 @@ fun NavGraph(
         composable("gas") {
             GasScreen(navController = navController)
         }
+        composable("config") {
+            ConfiguracionScreen(navController)
+        }
+
     }
 }

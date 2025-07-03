@@ -22,8 +22,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
+import com.angel.sentryhouse.RetrofitClient.getApi
 import com.angel.sentryhouse.utils.SensorImageStore
 import com.angel.sentryhouse.utils.createImageUri
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
@@ -40,6 +42,7 @@ data class SensorItem(
 fun GasScreen(navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var lecturaGas by remember { mutableStateOf(0) }
 
     var sensorList by remember {
         mutableStateOf(
@@ -52,11 +55,24 @@ fun GasScreen(navController: NavController) {
         )
     }
 
-    // Cargar imágenes guardadas
     LaunchedEffect(Unit) {
         sensorList = sensorList.map { sensor ->
-            val uri = SensorImageStore.getImageUri(context, sensor.id).firstOrNull()
+            val uri = SensorImageStore.getImageUri(context, "gas", sensor.id).firstOrNull()
             if (uri != null) sensor.copy(imageUri = uri) else sensor
+        }
+    }
+
+    // Cargar imágenes guardadas
+    LaunchedEffect(Unit) {
+        while (true) {
+            try {
+                val api = getApi(context)
+                val response = api.obtenerGas()
+                lecturaGas = response.valor
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            delay(5000)  // actualizar cada 5 segundos
         }
     }
 
@@ -73,7 +89,7 @@ fun GasScreen(navController: NavController) {
                     if (it.id == sensor.id) it.copy(imageUri = uri) else it
                 }
                 scope.launch {
-                    SensorImageStore.saveImageUri(context, sensor.id, uri)
+                    SensorImageStore.saveImageUri(context, "gas", sensor.id, uri)
                 }
             }
         }
@@ -88,12 +104,11 @@ fun GasScreen(navController: NavController) {
                     if (it.id == sensor.id) it.copy(imageUri = tempCameraUri) else it
                 }
                 scope.launch {
-                    SensorImageStore.saveImageUri(context, sensor.id, tempCameraUri!!)
+                    SensorImageStore.saveImageUri(context, "gas", sensor.id, tempCameraUri!!)
                 }
             }
         }
     }
-
     Scaffold(
         topBar = {
             TopAppBar(
