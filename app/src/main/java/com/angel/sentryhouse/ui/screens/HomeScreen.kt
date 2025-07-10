@@ -1,5 +1,6 @@
 package com.angel.sentryhouse.ui.screens
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -26,6 +27,8 @@ import com.patrykandpatrick.vico.compose.style.ChartStyle
 import com.patrykandpatrick.vico.compose.style.ProvideChartStyle
 import com.patrykandpatrick.vico.compose.m3.style.m3ChartStyle
 import com.patrykandpatrick.vico.core.chart.DefaultPointConnector
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -37,15 +40,23 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
     val aguaPrincipal = 60f
     val aguaFuga = 40f
     var lecturaGas by remember { mutableStateOf(0) }
+    var lecturaGasCocina by remember { mutableStateOf(0) }
     val context = LocalContext.current
 
     // Actualiza lectura del gas cada 5 segundos
     LaunchedEffect(Unit) {
+        val prefs = context.getSharedPreferences("config", Context.MODE_PRIVATE)
+        val urlCocina = prefs.getString("url_cocina", "").orEmpty()
+
         while (true) {
             try {
                 val api = getApi(context)
-                val response = api.obtenerGas()
-                lecturaGas = response.valor
+                lecturaGas = api.obtenerGas().valor
+
+                if (urlCocina.isNotBlank()) {
+                    lecturaGasCocina = api.obtenerGasCocina().valor
+                }
+
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -53,10 +64,14 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
         }
     }
 
+
+
     // Procesamiento de lectura del gas en porcentaje
     val gasLectura = lecturaGas.toFloat()
     val gasFuga = (gasLectura / 1023f) * 100f
     val gasPrincipal = 100f - gasFuga
+    var sensorActual by remember { mutableStateOf("boiler") }
+
 
     // Datos para las gráficas
     val aguaEntries = remember {
@@ -123,6 +138,7 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
                 modifier = Modifier
                     .padding(padding)
                     .padding(16.dp)
+                    .verticalScroll(rememberScrollState())
             ) {
                 Text("Bienvenido", style = MaterialTheme.typography.headlineSmall)
                 Spacer(modifier = Modifier.height(24.dp))
@@ -160,6 +176,52 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
 
                 // ---------- Gas ----------
                 Text("Consumo de Gas", style = MaterialTheme.typography.titleMedium)
+
+// Botones para cambiar de sensor
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Button(
+                        onClick = { sensorActual = "boiler" },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (sensorActual == "boiler") Color(0xFFFF7043) else MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Text("Ver Boiler")
+                    }
+                    Button(
+                        onClick = { sensorActual = "cocina" },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (sensorActual == "cocina") Color(0xFFFF7043) else MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Text("Ver Cocina")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+// Lecturas dependiendo del sensor seleccionado
+                val gasLecturaActual = if (sensorActual == "boiler") lecturaGas.toFloat() else lecturaGasCocina.toFloat()
+                val gasFugaActual = (gasLecturaActual / 1023f) * 100f
+                val gasPrincipalActual = 100f - gasFugaActual
+
+                val gasEntriesActual = entryModelOf(
+                    listOf(
+                        FloatEntry(0f, 10f),
+                        FloatEntry(1f, 12f),
+                        FloatEntry(2f, 15f),
+                        FloatEntry(3f, gasPrincipalActual.coerceAtLeast(0f))
+                    ),
+                    listOf(
+                        FloatEntry(0f, 0f),
+                        FloatEntry(1f, 0f),
+                        FloatEntry(2f, 0f),
+                        FloatEntry(3f, gasFugaActual.coerceAtLeast(0f))
+                    )
+                )
+
                 ProvideChartStyle(chartStyle = m3ChartStyle()) {
                     Chart(
                         chart = lineChart(
@@ -174,7 +236,7 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
                                 )
                             )
                         ),
-                        model = gasEntries,
+                        model = gasEntriesActual,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(200.dp)
@@ -182,15 +244,16 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("• Consumo normal: ${"%.2f".format(gasPrincipal)}%", color = Color(0xFFFF7043))
-                Text("• Posible fuga: ${"%.2f".format(gasFuga)}%", color = Color(0xFFFFAB91))
-                if (gasFuga > 20) {
+                Text("• Consumo normal: ${"%.2f".format(gasPrincipalActual)}%", color = Color(0xFFFF7043))
+                Text("• Posible fuga: ${"%.2f".format(gasFugaActual)}%", color = Color(0xFFFFAB91))
+                if (gasFugaActual > 20) {
                     Text(
                         "⚠️ Posible fuga detectada",
                         color = Color.Red,
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
+
             }
         }
     }

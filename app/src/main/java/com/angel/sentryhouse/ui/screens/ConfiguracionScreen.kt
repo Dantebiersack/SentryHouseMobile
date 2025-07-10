@@ -36,10 +36,13 @@ import kotlin.text.trim
 fun ConfiguracionScreen(navController: NavController) {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("config", Context.MODE_PRIVATE)
-    // Estado del campo de texto con la URL actual
     var url by remember {
-        mutableStateOf(TextFieldValue(prefs.getString("base_url", "") ?: ""))
+        mutableStateOf(TextFieldValue(prefs.getString("url", "") ?: ""))
     }
+    var urlCocina by remember {
+        mutableStateOf(TextFieldValue(prefs.getString("url_cocina", "") ?: ""))
+    }
+
 
     Scaffold(
         topBar = {
@@ -67,25 +70,36 @@ fun ConfiguracionScreen(navController: NavController) {
             OutlinedTextField(
                 value = url,
                 onValueChange = { url = it },
-                label = { Text("URL del servidor") },
+                label = { Text("URL del sensor BOILER") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = urlCocina,
+                onValueChange = { urlCocina = it },
+                label = { Text("URL del sensor COCINA") },
                 modifier = Modifier.fillMaxWidth()
             )
             // Botón para guardar la URL
             Button(
                 onClick = {
                     if (url.text.isNotBlank()) {
-                        prefs.edit().putString("base_url", url.text.trim()).apply()
-                        Toast.makeText(context, "URL guardada", Toast.LENGTH_SHORT).show()
+                        prefs.edit()
+                            .putString("base_url", url.text.trim())
+                            .putString("url_cocina", urlCocina.text.trim()) // puede estar vacía
+                            .apply()
+                        Toast.makeText(context, "Configuración guardada", Toast.LENGTH_SHORT).show()
                         navController.popBackStack()
                     } else {
-                        Toast.makeText(context, "La URL no puede estar vacía", Toast.LENGTH_SHORT)
-                            .show()
+                        Toast.makeText(context, "La URL del BOILER no puede estar vacía", Toast.LENGTH_SHORT).show()
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Guardar URL")
+                Text("Guardar URLs")
             }
+
+
         }
     }
 }

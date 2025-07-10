@@ -146,15 +146,15 @@ fun GasScreen(navController: NavController) {
 
                     Text("Lectura de Gas: $lecturaGas")
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Estado: ${if (sensor.isClosed) "Cerrado" else "Abierto"}")
 
-                    Switch(
-                        checked = sensor.isClosed,
-                        onCheckedChange = { isChecked ->
-                            sensor = sensor.copy(isClosed = isChecked)
-                        },
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
+                    // Quitar el Switch y agregar el botón "Ventilar"
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = { /* Acción de ventilar, agregar lógica aquí si es necesario */ },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Ventilar")
+                    }
 
                     if (sensor.hasLeak) {
                         Text("⚠️ Posible fuga", color = Color.Red, modifier = Modifier.padding(top = 8.dp))
