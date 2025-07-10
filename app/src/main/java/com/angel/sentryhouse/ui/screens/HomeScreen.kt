@@ -14,13 +14,19 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.angel.sentryhouse.RetrofitClient.getApi
 import com.angel.sentryhouse.ui.components.DrawerContent
-import com.github.tehras.charts.piechart.PieChart
-import com.github.tehras.charts.piechart.PieChartData
-import com.github.tehras.charts.piechart.PieChartData.Slice
-import com.github.tehras.charts.piechart.animation.simpleChartAnimation
-import com.github.tehras.charts.piechart.renderer.SimpleSliceDrawer
+import com.patrykandpatrick.vico.core.entry.FloatEntry
+import com.patrykandpatrick.vico.core.entry.entryModelOf
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+import com.patrykandpatrick.vico.compose.chart.Chart
+import com.patrykandpatrick.vico.compose.chart.line.lineChart
+import com.patrykandpatrick.vico.compose.chart.line.lineSpec
+import com.patrykandpatrick.vico.compose.style.ChartStyle
+import com.patrykandpatrick.vico.compose.style.ProvideChartStyle
+import com.patrykandpatrick.vico.compose.m3.style.m3ChartStyle
+import com.patrykandpatrick.vico.core.chart.DefaultPointConnector
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,23 +52,42 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
             delay(5000)
         }
     }
-// Procesamiento de lectura del gas en porcentaje
+
+    // Procesamiento de lectura del gas en porcentaje
     val gasLectura = lecturaGas.toFloat()
     val gasFuga = (gasLectura / 1023f) * 100f
     val gasPrincipal = 100f - gasFuga
-    // Datos para las gráficas circulares
-    val gasData = PieChartData(
-        slices = listOf(
-            Slice(gasPrincipal, Color(0xFFFF7043)),
-            Slice(gasFuga, Color(0xFFFFAB91))
+
+    // Datos para las gráficas
+    val aguaEntries = remember {
+        entryModelOf(
+            listOf(
+                FloatEntry(0f, 60f),
+                FloatEntry(1f, 62f),
+                FloatEntry(2f, 58f),
+                FloatEntry(3f, 61f),
+                FloatEntry(4f, 59f)
+            )
         )
-    )
-    val aguaData = PieChartData(
-        slices = listOf(
-            Slice(aguaPrincipal, Color(0xFF42A5F5)),
-            Slice(aguaFuga, Color(0xFF90CAF9))
+    }
+
+    val gasEntries = remember(lecturaGas) {
+        entryModelOf(
+            listOf(
+                FloatEntry(0f, 10f),
+                FloatEntry(1f, 12f),
+                FloatEntry(2f, 15f),
+                FloatEntry(3f, gasPrincipal.coerceAtLeast(0f))
+            ),
+            listOf(
+                FloatEntry(0f, 0f),
+                FloatEntry(1f, 0f),
+                FloatEntry(2f, 0f),
+                FloatEntry(3f, 0f),
+                FloatEntry(4f, gasFuga.coerceAtLeast(0f))
+            )
         )
-    )
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -104,14 +129,22 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
 
                 // ---------- Agua ----------
                 Text("Consumo de Agua", style = MaterialTheme.typography.titleMedium)
-                PieChart(
-                    pieChartData = aguaData,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp),
-                    animation = simpleChartAnimation(),
-                    sliceDrawer = SimpleSliceDrawer()
-                )
+                ProvideChartStyle(chartStyle = m3ChartStyle()) {
+                    Chart(
+                        chart = lineChart(
+                            lines = listOf(
+                                lineSpec(
+                                    lineColor = Color(0xFF42A5F5),
+                                    pointConnector = DefaultPointConnector(cubicStrength = 0.5f)
+                                )
+                            )
+                        ),
+                        model = aguaEntries,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                    )
+                }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("• Consumo normal: $aguaPrincipal%", color = Color(0xFF42A5F5))
                 Text("• Posible fuga: $aguaFuga%", color = Color(0xFF90CAF9))
@@ -124,16 +157,30 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
                 }
 
                 Spacer(modifier = Modifier.height(32.dp))
-                //  Visualización Gas
+
+                // ---------- Gas ----------
                 Text("Consumo de Gas", style = MaterialTheme.typography.titleMedium)
-                PieChart(
-                    pieChartData = gasData,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp),
-                    animation = simpleChartAnimation(),
-                    sliceDrawer = SimpleSliceDrawer()
-                )
+                ProvideChartStyle(chartStyle = m3ChartStyle()) {
+                    Chart(
+                        chart = lineChart(
+                            lines = listOf(
+                                lineSpec(
+                                    lineColor = Color(0xFFFF7043),
+                                    pointConnector = DefaultPointConnector(cubicStrength = 0.5f)
+                                ),
+                                lineSpec(
+                                    lineColor = Color(0xFFFFAB91),
+                                    pointConnector = DefaultPointConnector(cubicStrength = 0.5f)
+                                )
+                            )
+                        ),
+                        model = gasEntries,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("• Consumo normal: ${"%.2f".format(gasPrincipal)}%", color = Color(0xFFFF7043))
                 Text("• Posible fuga: ${"%.2f".format(gasFuga)}%", color = Color(0xFFFFAB91))

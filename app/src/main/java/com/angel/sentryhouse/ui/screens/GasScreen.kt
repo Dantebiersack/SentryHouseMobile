@@ -7,9 +7,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -44,25 +41,15 @@ fun GasScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
     var lecturaGas by remember { mutableStateOf(0) }
 
-    var sensorList by remember {
-        mutableStateOf(
-            listOf(
-                SensorItem(1, "Sensor 1"),
-                SensorItem(2, "Sensor 2"),
-                SensorItem(3, "Sensor 3"),
-                SensorItem(4, "Sensor 4")
-            )
-        )
+    var sensor by remember {
+        mutableStateOf(SensorItem(1, "Sensor Principal"))
     }
 
     LaunchedEffect(Unit) {
-        sensorList = sensorList.map { sensor ->
-            val uri = SensorImageStore.getImageUri(context, "gas", sensor.id).firstOrNull()
-            if (uri != null) sensor.copy(imageUri = uri) else sensor
-        }
+        val uri = SensorImageStore.getImageUri(context, "gas", sensor.id).firstOrNull()
+        if (uri != null) sensor = sensor.copy(imageUri = uri)
     }
 
-    // Cargar imágenes guardadas
     LaunchedEffect(Unit) {
         while (true) {
             try {
@@ -72,11 +59,10 @@ fun GasScreen(navController: NavController) {
             } catch (e: Exception) {
                 e.printStackTrace()
             }
-            delay(5000)  // actualizar cada 5 segundos
+            delay(5000) // Actualizar cada 5 segundos
         }
     }
 
-    var selectedSensor by remember { mutableStateOf<SensorItem?>(null) }
     var showDialog by remember { mutableStateOf(false) }
     var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
 
@@ -84,13 +70,9 @@ fun GasScreen(navController: NavController) {
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         uri?.let {
-            selectedSensor?.let { sensor ->
-                sensorList = sensorList.map {
-                    if (it.id == sensor.id) it.copy(imageUri = uri) else it
-                }
-                scope.launch {
-                    SensorImageStore.saveImageUri(context, "gas", sensor.id, uri)
-                }
+            sensor = sensor.copy(imageUri = uri)
+            scope.launch {
+                SensorImageStore.saveImageUri(context, "gas", sensor.id, uri)
             }
         }
     }
@@ -99,16 +81,13 @@ fun GasScreen(navController: NavController) {
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         if (success && tempCameraUri != null) {
-            selectedSensor?.let { sensor ->
-                sensorList = sensorList.map {
-                    if (it.id == sensor.id) it.copy(imageUri = tempCameraUri) else it
-                }
-                scope.launch {
-                    SensorImageStore.saveImageUri(context, "gas", sensor.id, tempCameraUri!!)
-                }
+            sensor = sensor.copy(imageUri = tempCameraUri)
+            scope.launch {
+                SensorImageStore.saveImageUri(context, "gas", sensor.id, tempCameraUri!!)
             }
         }
     }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -128,99 +107,101 @@ fun GasScreen(navController: NavController) {
             modifier = Modifier
                 .padding(paddingValues)
                 .padding(16.dp)
+                .fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Button(
-                onClick = {
-                    sensorList = sensorList.map { it.copy(isClosed = true) }
-                },
+            Card(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
+                    .fillMaxWidth(0.8f)
+                    .clickable {
+                        tempCameraUri = createImageUri(context)
+                        showDialog = true
+                    }
             ) {
-                Text("Cerrar todos")
-            }
-
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(sensorList) { sensor ->
-                    Card(
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
                         modifier = Modifier
+                            .aspectRatio(1f)
                             .fillMaxWidth()
-                            .clickable {
-                                selectedSensor = sensor
-                                tempCameraUri = createImageUri(context)
-                                showDialog = true
-                            }
+                            .background(Color.LightGray),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .aspectRatio(1f)
-                                    .fillMaxWidth()
-                                    .background(Color.LightGray),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                sensor.imageUri?.let {
-                                    Image(
-                                        painter = rememberAsyncImagePainter(it),
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                } ?: Text(sensor.name, color = Color.White)
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Text("Estado: ${if (sensor.isClosed) "Cerrado" else "Abierto"}")
-
-                            Switch(
-                                checked = sensor.isClosed,
-                                onCheckedChange = { isChecked ->
-                                    sensorList = sensorList.map {
-                                        if (it.id == sensor.id) it.copy(isClosed = isChecked) else it
-                                    }
-                                }
+                        sensor.imageUri?.let {
+                            Image(
+                                painter = rememberAsyncImagePainter(it),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
                             )
+                        } ?: Text(sensor.name, color = Color.White)
+                    }
 
-                            if (sensor.hasLeak) {
-                                Text("⚠️ Posible fuga", color = Color.Red)
-                            }
-                        }
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text("Lectura de Gas: $lecturaGas")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Estado: ${if (sensor.isClosed) "Cerrado" else "Abierto"}")
+
+                    Switch(
+                        checked = sensor.isClosed,
+                        onCheckedChange = { isChecked ->
+                            sensor = sensor.copy(isClosed = isChecked)
+                        },
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+
+                    if (sensor.hasLeak) {
+                        Text("⚠️ Posible fuga", color = Color.Red, modifier = Modifier.padding(top = 8.dp))
                     }
                 }
             }
         }
     }
 
-    if (showDialog && selectedSensor != null) {
+    if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
             title = { Text("Seleccionar imagen") },
             text = { Text("¿Deseas tomar una foto o elegir una de la galería?") },
             confirmButton = {
-                TextButton(onClick = {
-                    showDialog = false
-                    tempCameraUri?.let { cameraLauncher.launch(it) }
-                }) {
-                    Text("Tomar foto")
+                Column {
+                    TextButton(onClick = {
+                        showDialog = false
+                        tempCameraUri?.let { cameraLauncher.launch(it) }
+                    }) {
+                        Text("Tomar foto")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextButton(onClick = {
+                        showDialog = false
+                        galleryLauncher.launch("image/*")
+                    }) {
+                        Text("Galería")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    // boton para quitar la foto
+                    if (sensor.imageUri != null) { // Solo mostrar si hay una imagen
+                        TextButton(onClick = {
+                            showDialog = false
+                            sensor = sensor.copy(imageUri = null) //Limpia la uri
+                            scope.launch {
+                                SensorImageStore.saveImageUri(context, "gas", sensor.id, null) // Guardar null
+                            }
+                        }) {
+                            Text("Quitar foto")
+                        }
+                    }
                 }
             },
             dismissButton = {
-                TextButton(onClick = {
-                    showDialog = false
-                    galleryLauncher.launch("image/*")
-                }) {
-                    Text("Galería")
+                TextButton(onClick = { showDialog = false }) {
+                    Text("Cancelar")
                 }
             }
         )
