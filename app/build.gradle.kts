@@ -71,4 +71,7 @@ dependencies {
     implementation("com.patrykandpatrick.vico:compose-m3:1.13.0")
     implementation("com.patrykandpatrick.vico:core:1.13.0")
 
+    implementation("androidx.core:core-ktx:1.10.1")
+
+
 }

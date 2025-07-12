@@ -29,6 +29,7 @@ import com.patrykandpatrick.vico.compose.m3.style.m3ChartStyle
 import com.patrykandpatrick.vico.core.chart.DefaultPointConnector
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import com.angel.sentryhouse.enviarNotificacionAlerta
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -70,7 +71,7 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
     val gasLectura = lecturaGas.toFloat()
     val gasFuga = (gasLectura / 1023f) * 100f
     val gasPrincipal = 100f - gasFuga
-    var sensorActual by remember { mutableStateOf("boiler") }
+    var sensorActual by remember { mutableStateOf("tanque") }
 
 
     // Datos para las gráficas
@@ -183,12 +184,12 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     Button(
-                        onClick = { sensorActual = "boiler" },
+                        onClick = { sensorActual = "Tanque" },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (sensorActual == "boiler") Color(0xFFFF7043) else MaterialTheme.colorScheme.primary
+                            containerColor = if (sensorActual == "Tanque") Color(0xFFFF7043) else MaterialTheme.colorScheme.primary
                         )
                     ) {
-                        Text("Ver Boiler")
+                        Text("Ver Tanque")
                     }
                     Button(
                         onClick = { sensorActual = "cocina" },
@@ -203,9 +204,23 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
                 Spacer(modifier = Modifier.height(16.dp))
 
 // Lecturas dependiendo del sensor seleccionado
-                val gasLecturaActual = if (sensorActual == "boiler") lecturaGas.toFloat() else lecturaGasCocina.toFloat()
+                val gasLecturaActual = if (sensorActual == "Tanque") lecturaGas.toFloat() else lecturaGasCocina.toFloat()
                 val gasFugaActual = (gasLecturaActual / 1023f) * 100f
                 val gasPrincipalActual = 100f - gasFugaActual
+
+// Estado para evitar múltiples notificaciones
+                var alertaEnviada by remember(sensorActual) { mutableStateOf(false) }
+
+// Notificación con control
+                LaunchedEffect(gasFugaActual) {
+                    if (gasFugaActual > 20 && !alertaEnviada) {
+                        context.enviarNotificacionAlerta("⚠️ Fuga en ${sensorActual.uppercase()}: ${"%.1f".format(gasFugaActual)}%")
+                        alertaEnviada = true
+                    }
+                    if (gasFugaActual <= 20 && alertaEnviada) {
+                        alertaEnviada = false // permite reactivar la notificación si baja y vuelve a subir
+                    }
+                }
 
                 val gasEntriesActual = entryModelOf(
                     listOf(

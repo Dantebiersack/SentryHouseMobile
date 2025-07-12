@@ -70,7 +70,7 @@ fun ConfiguracionScreen(navController: NavController) {
             OutlinedTextField(
                 value = url,
                 onValueChange = { url = it },
-                label = { Text("URL del sensor BOILER") },
+                label = { Text("URL del sensor TANQUE") },
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -91,7 +91,7 @@ fun ConfiguracionScreen(navController: NavController) {
                         Toast.makeText(context, "Configuración guardada", Toast.LENGTH_SHORT).show()
                         navController.popBackStack()
                     } else {
-                        Toast.makeText(context, "La URL del BOILER no puede estar vacía", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "La URL del Tanqui no puede estar vacía", Toast.LENGTH_SHORT).show()
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
