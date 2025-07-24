@@ -1,6 +1,6 @@
 package com.angel.sentryhouse.ui.screens
 
-import com.angel.sentryhouse.R
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -12,17 +12,34 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.angel.sentryhouse.ApiService
+import com.angel.sentryhouse.R
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 
 @Composable
 fun LoginScreen(navController: NavController) {
-    var user by remember { mutableStateOf("") }
-    var pass by remember { mutableStateOf("") }
+    var correo by remember { mutableStateOf("") }
+    var contrasena by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
+    val retrofit = Retrofit.Builder()
+        .baseUrl("https://sentry-house-vercel.vercel.app")
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+
+    val apiService = retrofit.create(ApiService::class.java)
 
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -39,25 +56,22 @@ fun LoginScreen(navController: NavController) {
             Spacer(Modifier.height(20.dp))
 
             OutlinedTextField(
-                value = user,
-                onValueChange = { user = it },
-                label = { Text("Usuario") },
+                value = correo,
+                onValueChange = { correo = it },
+                label = { Text("Correo") },
                 singleLine = true
             )
             Spacer(Modifier.height(8.dp))
-            var pass by remember { mutableStateOf("") }
-            var passwordVisible by remember { mutableStateOf(false) }
 
             OutlinedTextField(
-                value = pass,
-                onValueChange = { pass = it },
+                value = contrasena,
+                onValueChange = { contrasena = it },
                 label = { Text("Contraseña") },
                 singleLine = true,
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
-                    val icon = if (passwordVisible) Icons.Default.CheckCircle else Icons.Default.CheckCircle
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                        Icon(icon, contentDescription = "Mostrar/Ocultar contraseña")
+                        Icon(Icons.Default.CheckCircle, contentDescription = "Mostrar/Ocultar contraseña")
                     }
                 },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
@@ -66,12 +80,32 @@ fun LoginScreen(navController: NavController) {
 
             Button(
                 onClick = {
-                    if (user == "root" && pass == "root") {
-                        navController.navigate("home")
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            val response = apiService.login(ApiService.LoginRequest(correo, contrasena))
+                            if (response.isSuccessful) {
+                                val loginData = response.body()
+                                if (loginData != null) {
+                                    // ✅ Login exitoso
+                                    launch(Dispatchers.Main) {
+                                        Toast.makeText(context, "Bienvenido ${loginData.correo}", Toast.LENGTH_SHORT).show()
+                                        navController.navigate("home")
+                                    }
+                                }
+                            } else {
+                                launch(Dispatchers.Main) {
+                                    Toast.makeText(context, "Correo o contraseña incorrectos", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            launch(Dispatchers.Main) {
+                                Toast.makeText(context, "Error de conexión: ${e.message}", Toast.LENGTH_LONG).show()
+                            }
+                        }
                     }
                 }
             ) {
-                Text("Iniciar")
+                Text("Iniciar sesión")
             }
         }
     }
