@@ -36,13 +36,10 @@ import kotlin.text.trim
 fun ConfiguracionScreen(navController: NavController) {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("config", Context.MODE_PRIVATE)
-    var url by remember {
-        mutableStateOf(TextFieldValue(prefs.getString("url", "") ?: ""))
-    }
-    var urlCocina by remember {
-        mutableStateOf(TextFieldValue(prefs.getString("url_cocina", "") ?: ""))
-    }
 
+    var baseUrl by remember {
+        mutableStateOf(TextFieldValue(prefs.getString("base_url", "") ?: ""))
+    }
 
     Scaffold(
         topBar = {
@@ -50,10 +47,7 @@ fun ConfiguracionScreen(navController: NavController) {
                 title = { Text("Configuración") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Atrás"
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás")
                     }
                 }
             )
@@ -66,40 +60,29 @@ fun ConfiguracionScreen(navController: NavController) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Campo para ingresar la URL del servidor
             OutlinedTextField(
-                value = url,
-                onValueChange = { url = it },
-                label = { Text("URL del sensor TANQUE") },
+                value = baseUrl,
+                onValueChange = { baseUrl = it },
+                label = { Text("") },
                 modifier = Modifier.fillMaxWidth()
             )
 
-            OutlinedTextField(
-                value = urlCocina,
-                onValueChange = { urlCocina = it },
-                label = { Text("URL del sensor COCINA") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            // Botón para guardar la URL
             Button(
                 onClick = {
-                    if (url.text.isNotBlank()) {
+                    if (baseUrl.text.isNotBlank()) {
                         prefs.edit()
-                            .putString("base_url", url.text.trim())
-                            .putString("url_cocina", urlCocina.text.trim()) // puede estar vacía
+                            .putString("base_url", baseUrl.text.trim().removeSuffix("/"))
                             .apply()
                         Toast.makeText(context, "Configuración guardada", Toast.LENGTH_SHORT).show()
                         navController.popBackStack()
                     } else {
-                        Toast.makeText(context, "La URL del Tanqui no puede estar vacía", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "La URL base no puede estar vacía", Toast.LENGTH_SHORT).show()
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Guardar URLs")
+                Text("Guardar URL")
             }
-
-
         }
     }
 }
