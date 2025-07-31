@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.angel.sentryhouse.RetrofitClient
 import com.angel.sentryhouse.RetrofitClient.getApi
 import com.angel.sentryhouse.ui.components.DrawerContent
 import com.angel.sentryhouse.enviarNotificacionAlerta
@@ -42,7 +43,10 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
     var lecturaGasCocina by remember { mutableStateOf(0) }
     var sensorActual by remember { mutableStateOf("Tanque") }
     var alertaEnviada by remember(sensorActual) { mutableStateOf(false) }
-
+    val historialGasTanque = remember { mutableStateListOf<Float>() }
+    val historialFugaTanque = remember { mutableStateListOf<Float>() }
+    val historialGasCocina = remember { mutableStateListOf<Float>() }
+    val historialFugaCocina = remember { mutableStateListOf<Float>() }
     val context = LocalContext.current
 
     // Valor base calibrado (ajusta según tus pruebas reales)
@@ -50,41 +54,52 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
 
     // Obtener lecturas periódicamente
     LaunchedEffect(Unit) {
-        val prefs = context.getSharedPreferences("config", Context.MODE_PRIVATE)
-        val urlCocina = prefs.getString("url_cocina", "").orEmpty()
+        val api = RetrofitClient.getApi(context)
 
         while (true) {
             try {
-                val api = getApi(context)
-                val nuevoGas = api.obtenerGas().valor
-                val nuevoGasCocina = if (urlCocina.isNotBlank()) api.obtenerGasCocina().valor else 0
+                val gasResponse = api.obtenerGas()
+                val gasCocinaResponse = api.obtenerGasCocina()
 
-                // --- Notificación por cruce de umbral en CUARTO (tanque)
-                if (prevLecturaGas < 2800 && nuevoGas >= 2800) {
-                    context.enviarNotificacionAlerta("⚠️ Alerta: Gas en el CUARTO ha subido a ${nuevoGas} ppm")
-                }
+                lecturaGas = gasResponse.valor
+                lecturaGasCocina = gasCocinaResponse.valor
 
-                // --- Notificación por cruce de umbral en COCINA
-                if (prevLecturaGasCocina < 3600 && nuevoGasCocina >= 3600) {
-                    context.enviarNotificacionAlerta("⚠️ Alerta: Gas en la COCINA ha subido a ${nuevoGasCocina} ppm")
-                }
+                // Calcular para TANQUE
+                val baseSinGasTanque = 2500f
+                val maxValorTanque = 4000f
+                val diferenciaTanque = lecturaGas.toFloat() - baseSinGasTanque
+                val gasFugaTanque = if (diferenciaTanque > 0) (diferenciaTanque / (maxValorTanque - baseSinGasTanque)) * 100f else 0f
+                val gasPrincipalTanque = (100f - gasFugaTanque).coerceAtLeast(0f)
 
-                // Actualiza las variables para la siguiente comparación
-                prevLecturaGas = nuevoGas
-                prevLecturaGasCocina = nuevoGasCocina
-                lecturaGas = nuevoGas
-                lecturaGasCocina = nuevoGasCocina
+                // Actualizar histórico TANQUE
+                if (historialGasTanque.size >= 10) historialGasTanque.removeAt(0)
+                historialGasTanque.add(gasPrincipalTanque)
+                if (historialFugaTanque.size >= 10) historialFugaTanque.removeAt(0)
+                historialFugaTanque.add(gasFugaTanque)
+
+                // Calcular para COCINA
+                val baseSinGasCocina = 3200f
+                val maxValorCocina = 4500f
+                val diferenciaCocina = lecturaGasCocina.toFloat() - baseSinGasCocina
+                val gasFugaCocina = if (diferenciaCocina > 0) (diferenciaCocina / (maxValorCocina - baseSinGasCocina)) * 100f else 0f
+                val gasPrincipalCocina = (100f - gasFugaCocina).coerceAtLeast(0f)
+
+                // Actualizar histórico COCINA
+                if (historialGasCocina.size >= 10) historialGasCocina.removeAt(0)
+                historialGasCocina.add(gasPrincipalCocina)
+                if (historialFugaCocina.size >= 10) historialFugaCocina.removeAt(0)
+                historialFugaCocina.add(gasFugaCocina)
 
             } catch (e: Exception) {
                 e.printStackTrace()
+                println("❌ Error al obtener datos: ${e.message}")
             }
 
             delay(5000)
         }
     }
 
-
-    // Lectura seleccionada según el sensor activo
+    // Calcular valores actuales para mostrar
     val (baseSinGas, maxValor) = if (sensorActual == "Tanque") {
         2500f to 4000f
     } else {
@@ -95,8 +110,6 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
     val diferencia = lecturaActual - baseSinGas
     val gasFugaActual = if (diferencia > 0) (diferencia / (maxValor - baseSinGas)) * 100f else 0f
     val gasPrincipalActual = (100f - gasFugaActual).coerceAtLeast(0f)
-
-
     // Notificación
     LaunchedEffect(gasFugaActual) {
         if (gasFugaActual > 20 && !alertaEnviada) {
@@ -121,20 +134,45 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
         )
     )
 
-    val gasEntries = entryModelOf(
-        listOf(
-            FloatEntry(0f, 10f),
-            FloatEntry(1f, 12f),
-            FloatEntry(2f, 15f),
-            FloatEntry(3f, gasPrincipalActual.coerceAtLeast(0f))
-        ),
-        listOf(
-            FloatEntry(0f, 0f),
-            FloatEntry(1f, 0f),
-            FloatEntry(2f, 0f),
-            FloatEntry(3f, gasFugaActual.coerceAtLeast(0f))
-        )
-    )
+    val gasEntries by remember(sensorActual, historialGasTanque, historialFugaTanque, historialGasCocina, historialFugaCocina, lecturaActual) {
+        derivedStateOf {
+            val historialPrincipal: List<Float>
+            val historialFuga: List<Float>
+            val precargadoPrincipal: List<Float>
+            val precargadoFuga: List<Float>
+
+            if (sensorActual == "Tanque") {
+                historialPrincipal = historialGasTanque
+                historialFuga = historialFugaTanque
+                precargadoPrincipal = listOf(70f, 68f, 65f)
+                precargadoFuga = listOf(0f, 2f, 5f)
+            } else {
+                historialPrincipal = historialGasCocina
+                historialFuga = historialFugaCocina
+                precargadoPrincipal = listOf(55f, 52f, 50f)
+                precargadoFuga = listOf(3f, 4f, 6f)
+            }
+
+            val diferencia = lecturaActual - baseSinGas
+            val gasFugaActual = if (diferencia > 0) (diferencia / (maxValor - baseSinGas)) * 100f else 0f
+            val gasPrincipalActual = (100f - gasFugaActual).coerceAtLeast(0f)
+
+            val principalEntries = precargadoPrincipal.mapIndexed { index, valor ->
+                FloatEntry(index.toFloat(), valor)
+            }.toMutableList().apply {
+                add(FloatEntry(size.toFloat(), gasPrincipalActual))
+            }
+
+            val fugaEntries = precargadoFuga.mapIndexed { index, valor ->
+                FloatEntry(index.toFloat(), valor)
+            }.toMutableList().apply {
+                add(FloatEntry(size.toFloat(), gasFugaActual))
+            }
+
+            entryModelOf(principalEntries, fugaEntries)
+        }
+    }
+
 
     ModalNavigationDrawer(
         drawerState = drawerState,
