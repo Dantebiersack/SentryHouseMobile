@@ -16,7 +16,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.angel.sentryhouse.RetrofitClient
-import com.angel.sentryhouse.RetrofitClient.getApi
 import com.angel.sentryhouse.ui.components.DrawerContent
 import com.angel.sentryhouse.enviarNotificacionAlerta
 import com.patrykandpatrick.vico.compose.chart.Chart
@@ -35,56 +34,56 @@ import kotlinx.coroutines.launch
 fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-// 👇 Agrega estas nuevas variables arriba, con el resto de tus estados:
-    var prevLecturaGas by remember { mutableStateOf(0) }
-    var prevLecturaGasCocina by remember { mutableStateOf(0) }
+    val context = LocalContext.current
 
+    // Variables que almacenan las lecturas actuales de los sensores
     var lecturaGas by remember { mutableStateOf(0) }
     var lecturaGasCocina by remember { mutableStateOf(0) }
+
+    // Control para cambiar entre sensor de "Tanque" o "Cocina"
     var sensorActual by remember { mutableStateOf("Tanque") }
-    var alertaEnviada by remember(sensorActual) { mutableStateOf(false) }
+
+    // Historial de valores de gas y fugas para graficar (listas mutables reactivas)
     val historialGasTanque = remember { mutableStateListOf<Float>() }
     val historialFugaTanque = remember { mutableStateListOf<Float>() }
     val historialGasCocina = remember { mutableStateListOf<Float>() }
     val historialFugaCocina = remember { mutableStateListOf<Float>() }
-    val context = LocalContext.current
 
-    // Valor base calibrado (ajusta según tus pruebas reales)
-    val valorBaseSinGas = 250f
+    // Para controlar si ya se envió una notificación
+    var alertaEnviada by remember(sensorActual) { mutableStateOf(false) }
 
-    // Obtener lecturas periódicamente
+    // ⏱️ Lógica para obtener lecturas del servidor cada 5 segundos
     LaunchedEffect(Unit) {
         val api = RetrofitClient.getApi(context)
-
         while (true) {
             try {
+                // Se hacen llamadas a la API para ambos sensores
                 val gasResponse = api.obtenerGas()
                 val gasCocinaResponse = api.obtenerGasCocina()
 
+                // Actualizamos variables con la lectura más reciente
                 lecturaGas = gasResponse.valor
                 lecturaGasCocina = gasCocinaResponse.valor
 
-                // Calcular para TANQUE
+                // ⚙️ TANQUE: cálculo y actualización de histórico
                 val baseSinGasTanque = 2500f
                 val maxValorTanque = 4000f
                 val diferenciaTanque = lecturaGas.toFloat() - baseSinGasTanque
                 val gasFugaTanque = if (diferenciaTanque > 0) (diferenciaTanque / (maxValorTanque - baseSinGasTanque)) * 100f else 0f
                 val gasPrincipalTanque = (100f - gasFugaTanque).coerceAtLeast(0f)
 
-                // Actualizar histórico TANQUE
                 if (historialGasTanque.size >= 10) historialGasTanque.removeAt(0)
                 historialGasTanque.add(gasPrincipalTanque)
                 if (historialFugaTanque.size >= 10) historialFugaTanque.removeAt(0)
                 historialFugaTanque.add(gasFugaTanque)
 
-                // Calcular para COCINA
+                // ⚙️ COCINA: cálculo y actualización de histórico
                 val baseSinGasCocina = 3200f
                 val maxValorCocina = 4500f
                 val diferenciaCocina = lecturaGasCocina.toFloat() - baseSinGasCocina
                 val gasFugaCocina = if (diferenciaCocina > 0) (diferenciaCocina / (maxValorCocina - baseSinGasCocina)) * 100f else 0f
                 val gasPrincipalCocina = (100f - gasFugaCocina).coerceAtLeast(0f)
 
-                // Actualizar histórico COCINA
                 if (historialGasCocina.size >= 10) historialGasCocina.removeAt(0)
                 historialGasCocina.add(gasPrincipalCocina)
                 if (historialFugaCocina.size >= 10) historialFugaCocina.removeAt(0)
@@ -95,33 +94,29 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
                 println("❌ Error al obtener datos: ${e.message}")
             }
 
-            delay(5000)
+            delay(5000) // Espera 5 segundos antes de la siguiente lectura
         }
     }
 
-    // Calcular valores actuales para mostrar
-    val (baseSinGas, maxValor) = if (sensorActual == "Tanque") {
-        2500f to 4000f
-    } else {
-        3200f to 4500f
-    }
-
+    // 📊 Determina los límites según el sensor actual
+    val (baseSinGas, maxValor) = if (sensorActual == "Tanque") 2500f to 4000f else 3200f to 4500f
     val lecturaActual = if (sensorActual == "Tanque") lecturaGas.toFloat() else lecturaGasCocina.toFloat()
+
     val diferencia = lecturaActual - baseSinGas
     val gasFugaActual = if (diferencia > 0) (diferencia / (maxValor - baseSinGas)) * 100f else 0f
     val gasPrincipalActual = (100f - gasFugaActual).coerceAtLeast(0f)
-    // Notificación
+
+    // 🔔 Enviar notificación si la fuga supera cierto umbral
     LaunchedEffect(gasFugaActual) {
         if (gasFugaActual > 20 && !alertaEnviada) {
             context.enviarNotificacionAlerta("⚠️ Fuga en ${sensorActual.uppercase()}: ${"%.1f".format(gasFugaActual)}%")
             alertaEnviada = true
-        }
-        if (gasFugaActual <= 20 && alertaEnviada) {
+        } else if (gasFugaActual <= 20 && alertaEnviada) {
             alertaEnviada = false
         }
     }
 
-    // Gráficas de ejemplo
+    // 📈 Datos simulados para la gráfica de agua
     val aguaPrincipal = 60f
     val aguaFuga = 40f
     val aguaEntries = entryModelOf(
@@ -134,6 +129,7 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
         )
     )
 
+    // 📉 Construcción del modelo de gráfica de gas dinámico
     val gasEntries by remember(sensorActual, historialGasTanque, historialFugaTanque, historialGasCocina, historialFugaCocina, lecturaActual) {
         derivedStateOf {
             val historialPrincipal: List<Float>
@@ -141,6 +137,7 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
             val precargadoPrincipal: List<Float>
             val precargadoFuga: List<Float>
 
+            // Cargar historial y valores precargados según sensor actual
             if (sensorActual == "Tanque") {
                 historialPrincipal = historialGasTanque
                 historialFuga = historialFugaTanque
@@ -153,10 +150,7 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
                 precargadoFuga = listOf(3f, 4f, 6f)
             }
 
-            val diferencia = lecturaActual - baseSinGas
-            val gasFugaActual = if (diferencia > 0) (diferencia / (maxValor - baseSinGas)) * 100f else 0f
-            val gasPrincipalActual = (100f - gasFugaActual).coerceAtLeast(0f)
-
+            // Agregamos el valor actual a la serie
             val principalEntries = precargadoPrincipal.mapIndexed { index, valor ->
                 FloatEntry(index.toFloat(), valor)
             }.toMutableList().apply {
@@ -173,7 +167,7 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
         }
     }
 
-
+    // 🧭 Contenedor con menú lateral
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -210,10 +204,11 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
                     .padding(16.dp)
                     .verticalScroll(rememberScrollState())
             ) {
+                // 👋 Título
                 Text("Bienvenido", style = MaterialTheme.typography.headlineSmall)
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Agua
+                // 💧 Sección de Agua
                 Text("Consumo de Agua", style = MaterialTheme.typography.titleMedium)
                 ProvideChartStyle(m3ChartStyle()) {
                     Chart(
@@ -240,12 +235,13 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Gas
+                // 🔥 Sección de Gas
                 Text("Consumo de Gas", style = MaterialTheme.typography.titleMedium)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
+                    // Botón para seleccionar sensor "Tanque"
                     Button(
                         onClick = { sensorActual = "Tanque" },
                         colors = ButtonDefaults.buttonColors(
@@ -253,6 +249,7 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
                         )
                     ) { Text("Ver Tanque") }
 
+                    // Botón para seleccionar sensor "Cocina"
                     Button(
                         onClick = { sensorActual = "Cocina" },
                         colors = ButtonDefaults.buttonColors(
@@ -262,16 +259,18 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
+
+                // 📊 Gráfica del consumo de gas
                 ProvideChartStyle(m3ChartStyle()) {
                     Chart(
                         chart = lineChart(
                             lines = listOf(
                                 lineSpec(
-                                    lineColor = Color(0xFFFF7043),
+                                    lineColor = Color(0xFFFF7043), // Consumo normal
                                     pointConnector = DefaultPointConnector(cubicStrength = 0.5f)
                                 ),
                                 lineSpec(
-                                    lineColor = Color(0xFFFFAB91),
+                                    lineColor = Color(0xFFFFAB91), // Fuga
                                     pointConnector = DefaultPointConnector(cubicStrength = 0.5f)
                                 )
                             )

@@ -25,6 +25,8 @@ import com.angel.sentryhouse.utils.createImageUri
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 data class SensorItem(
     val id: Int,
@@ -39,40 +41,55 @@ data class SensorItem(
 fun GasScreen(navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
     var lecturaGas by remember { mutableStateOf(0) }
+    var lecturaGasCocina by remember { mutableStateOf(0) }
 
-    var sensor by remember {
-        mutableStateOf(SensorItem(1, "Sensor Principal"))
-    }
+    var sensorTanque by remember { mutableStateOf(SensorItem(1, "Sensor Tanque")) }
+    var sensorCocina by remember { mutableStateOf(SensorItem(2, "Sensor Cocina")) }
 
+    var activeSensorId by remember { mutableStateOf(1) }
+
+    // Cargar imagen guardada si existe
     LaunchedEffect(Unit) {
-        val uri = SensorImageStore.getImageUri(context, "gas", sensor.id).firstOrNull()
-        if (uri != null) sensor = sensor.copy(imageUri = uri)
+        val uriTanque = SensorImageStore.getImageUri(context, "gas", 1).firstOrNull()
+        if (uriTanque != null) sensorTanque = sensorTanque.copy(imageUri = uriTanque)
+
+        val uriCocina = SensorImageStore.getImageUri(context, "gas", 2).firstOrNull()
+        if (uriCocina != null) sensorCocina = sensorCocina.copy(imageUri = uriCocina)
     }
 
+    // Lectura periódica de ambos sensores
     LaunchedEffect(Unit) {
         while (true) {
             try {
                 val api = getApi(context)
-                val response = api.obtenerGas()
-                lecturaGas = response.valor
+                val responseTanque = api.obtenerGas()
+                lecturaGas = responseTanque.valor
+
+                val responseCocina = api.obtenerGasCocina()
+                lecturaGasCocina = responseCocina.valor
             } catch (e: Exception) {
                 e.printStackTrace()
             }
-            delay(5000) // Actualizar cada 5 segundos
+            delay(5000)
         }
     }
 
     var showDialog by remember { mutableStateOf(false) }
     var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var editingSensor by remember { mutableStateOf<SensorItem?>(null) }
 
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         uri?.let {
-            sensor = sensor.copy(imageUri = uri)
-            scope.launch {
-                SensorImageStore.saveImageUri(context, "gas", sensor.id, uri)
+            editingSensor?.let { sensor ->
+                val updated = sensor.copy(imageUri = uri)
+                if (sensor.id == 1) sensorTanque = updated else sensorCocina = updated
+                scope.launch {
+                    SensorImageStore.saveImageUri(context, "gas", sensor.id, uri)
+                }
             }
         }
     }
@@ -81,9 +98,12 @@ fun GasScreen(navController: NavController) {
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         if (success && tempCameraUri != null) {
-            sensor = sensor.copy(imageUri = tempCameraUri)
-            scope.launch {
-                SensorImageStore.saveImageUri(context, "gas", sensor.id, tempCameraUri!!)
+            editingSensor?.let { sensor ->
+                val updated = sensor.copy(imageUri = tempCameraUri)
+                if (sensor.id == 1) sensorTanque = updated else sensorCocina = updated
+                scope.launch {
+                    SensorImageStore.saveImageUri(context, "gas", sensor.id, tempCameraUri!!)
+                }
             }
         }
     }
@@ -94,10 +114,7 @@ fun GasScreen(navController: NavController) {
                 title = { Text("Detector de Fuga de Gas") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Atrás"
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás")
                     }
                 }
             )
@@ -107,64 +124,65 @@ fun GasScreen(navController: NavController) {
             modifier = Modifier
                 .padding(paddingValues)
                 .padding(16.dp)
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()), // ✅ Scroll vertical
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth(0.8f)
-                    .clickable {
-                        tempCameraUri = createImageUri(context)
-                        showDialog = true
-                    }
-            ) {
-                Column(
+            listOf(sensorTanque to lecturaGas, sensorCocina to lecturaGasCocina).forEach { (sensor, lectura) ->
+                Card(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .fillMaxWidth(0.9f)
+                        .clickable {
+                            tempCameraUri = createImageUri(context)
+                            editingSensor = sensor
+                            showDialog = true
+                        }
+                        .padding(bottom = 24.dp) // Espacio entre sensores
                 ) {
-                    Box(
+                    Column(
                         modifier = Modifier
-                            .aspectRatio(1f)
                             .fillMaxWidth()
-                            .background(Color.LightGray),
-                        contentAlignment = Alignment.Center
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        sensor.imageUri?.let {
-                            Image(
-                                painter = rememberAsyncImagePainter(it),
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        } ?: Text(sensor.name, color = Color.White)
-                    }
+                        Box(
+                            modifier = Modifier
+                                .aspectRatio(1f)
+                                .fillMaxWidth()
+                                .background(Color.LightGray),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            sensor.imageUri?.let {
+                                Image(
+                                    painter = rememberAsyncImagePainter(it),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } ?: Text(sensor.name, color = Color.White)
+                        }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Lectura de Gas: $lectura")
 
-                    Text("Lectura de Gas: $lecturaGas")
-                    Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = { /* Acción para ventilar si deseas */ },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Ventilar")
+                        }
 
-                    // Quitar el Switch y agregar el botón "Ventilar"
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(
-                        onClick = { /* Acción de ventilar, agregar lógica aquí si es necesario */ },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Ventilar")
-                    }
-
-                    if (sensor.hasLeak) {
-                        Text("⚠️ Posible fuga", color = Color.Red, modifier = Modifier.padding(top = 8.dp))
+                        if (sensor.hasLeak) {
+                            Text("⚠️ Posible fuga", color = Color.Red, modifier = Modifier.padding(top = 8.dp))
+                        }
                     }
                 }
             }
         }
     }
 
-    if (showDialog) {
+    if (showDialog && editingSensor != null) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
             title = { Text("Seleccionar imagen") },
@@ -185,13 +203,13 @@ fun GasScreen(navController: NavController) {
                         Text("Galería")
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    // boton para quitar la foto
-                    if (sensor.imageUri != null) { // Solo mostrar si hay una imagen
+                    if (editingSensor!!.imageUri != null) {
                         TextButton(onClick = {
                             showDialog = false
-                            sensor = sensor.copy(imageUri = null) //Limpia la uri
+                            val clearedSensor = editingSensor!!.copy(imageUri = null)
+                            if (editingSensor!!.id == 1) sensorTanque = clearedSensor else sensorCocina = clearedSensor
                             scope.launch {
-                                SensorImageStore.saveImageUri(context, "gas", sensor.id, null) // Guardar null
+                                SensorImageStore.saveImageUri(context, "gas", editingSensor!!.id, null)
                             }
                         }) {
                             Text("Quitar foto")
