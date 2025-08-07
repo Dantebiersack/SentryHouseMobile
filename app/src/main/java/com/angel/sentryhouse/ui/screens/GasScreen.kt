@@ -128,53 +128,71 @@ fun GasScreen(navController: NavController) {
                 .verticalScroll(rememberScrollState()), // ✅ Scroll vertical
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            listOf(sensorTanque to lecturaGas, sensorCocina to lecturaGasCocina).forEach { (sensor, lectura) ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth(0.9f)
-                        .clickable {
-                            tempCameraUri = createImageUri(context)
-                            editingSensor = sensor
-                            showDialog = true
-                        }
-                        .padding(bottom = 24.dp) // Espacio entre sensores
-                ) {
-                    Column(
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                listOf(
+                    sensorTanque to lecturaGas,
+                    sensorCocina to lecturaGasCocina
+                ).forEach { (sensor, lectura) ->
+                    Card(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .width(160.dp)
+                            .height(250.dp)
+                            .clickable {
+                                tempCameraUri = createImageUri(context)
+                                editingSensor = sensor
+                                showDialog = true
+                            },
+                        shape = MaterialTheme.shapes.medium,
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                     ) {
-                        Box(
+                        Column(
                             modifier = Modifier
-                                .aspectRatio(1f)
-                                .fillMaxWidth()
-                                .background(Color.LightGray),
-                            contentAlignment = Alignment.Center
+                                .fillMaxSize()
+                                .padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.SpaceBetween
                         ) {
-                            sensor.imageUri?.let {
-                                Image(
-                                    painter = rememberAsyncImagePainter(it),
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
+                            Box(
+                                modifier = Modifier
+                                    .size(100.dp)
+                                    .background(Color.LightGray),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                sensor.imageUri?.let {
+                                    Image(
+                                        painter = rememberAsyncImagePainter(it),
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } ?: Text(sensor.name, color = Color.White)
+                            }
+
+                            Text(
+                                "Lectura: $lectura",
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+
+                            Button(
+                                onClick = { /* Acción de ventilación */ },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Ventilar", style = MaterialTheme.typography.labelLarge)
+                            }
+
+                            if (sensor.hasLeak) {
+                                Text(
+                                    "⚠️ Posible fuga",
+                                    color = Color.Red,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    modifier = Modifier.padding(top = 4.dp)
                                 )
-                            } ?: Text(sensor.name, color = Color.White)
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text("Lectura de Gas: $lectura")
-
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Button(
-                            onClick = { /* Acción para ventilar si deseas */ },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Ventilar")
-                        }
-
-                        if (sensor.hasLeak) {
-                            Text("⚠️ Posible fuga", color = Color.Red, modifier = Modifier.padding(top = 8.dp))
+                            }
                         }
                     }
                 }
@@ -182,7 +200,7 @@ fun GasScreen(navController: NavController) {
         }
     }
 
-    if (showDialog && editingSensor != null) {
+        if (showDialog && editingSensor != null) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
             title = { Text("Seleccionar imagen") },
