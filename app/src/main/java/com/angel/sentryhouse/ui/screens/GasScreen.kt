@@ -35,7 +35,10 @@ data class SensorItem(
     val isClosed: Boolean = false,
     val hasLeak: Boolean = false
 )
-
+val VerdeEcologico = Color(0xFF4CAF50)
+val VerdeOscuroEcologico = Color(0xFF2E7D32)
+val AzulEcologico = Color(0xFF2196F3)
+val AmarilloEcologico = Color(0xFFFFC107)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GasScreen(navController: NavController) {
@@ -123,84 +126,157 @@ fun GasScreen(navController: NavController) {
         Column(
             modifier = Modifier
                 .padding(paddingValues)
-                .padding(16.dp)
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState()), // ✅ Scroll vertical
-            horizontalAlignment = Alignment.CenterHorizontally
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                listOf(
-                    sensorTanque to lecturaGas,
-                    sensorCocina to lecturaGasCocina
-                ).forEach { (sensor, lectura) ->
-                    Card(
+                Spacer(modifier = Modifier.weight(1f))
+
+                // Primer Card - Sensor Tanque
+                Card(
+                    modifier = Modifier
+                        .width(160.dp)
+                        .height(250.dp)
+                        .clickable {
+                            tempCameraUri = createImageUri(context)
+                            editingSensor = sensorTanque
+                            showDialog = true
+                        },
+                    shape = MaterialTheme.shapes.medium,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                ) {
+                    Column(
                         modifier = Modifier
-                            .width(160.dp)
-                            .height(250.dp)
-                            .clickable {
-                                tempCameraUri = createImageUri(context)
-                                editingSensor = sensor
-                                showDialog = true
-                            },
-                        shape = MaterialTheme.shapes.medium,
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                            .fillMaxSize()
+                            .padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column(
+                        Box(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .padding(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.SpaceBetween
+                                .size(100.dp)
+                                .background(Color.LightGray),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(100.dp)
-                                    .background(Color.LightGray),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                sensor.imageUri?.let {
-                                    Image(
-                                        painter = rememberAsyncImagePainter(it),
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                } ?: Text(sensor.name, color = Color.White)
-                            }
-
-                            Text(
-                                "Lectura: $lectura",
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(top = 8.dp)
-                            )
-
-                            Button(
-                                onClick = { /* Acción de ventilación */ },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Ventilar", style = MaterialTheme.typography.labelLarge)
-                            }
-
-                            if (sensor.hasLeak) {
-                                Text(
-                                    "⚠️ Posible fuga",
-                                    color = Color.Red,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    modifier = Modifier.padding(top = 4.dp)
+                            sensorTanque.imageUri?.let {
+                                Image(
+                                    painter = rememberAsyncImagePainter(it),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
                                 )
-                            }
+                            } ?: Text(sensorTanque.name, color = Color.White)
+                        }
+
+                        Text(
+                            "Lectura: $lecturaGas",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+
+                        Button(
+                            onClick = { /* Acción de ventilación */ },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Ventilar", style = MaterialTheme.typography.labelLarge)
+                        }
+
+                        if (sensorTanque.hasLeak) {
+                            Text(
+                                "⚠️ Posible fuga",
+                                color = Color.Red,
+                                style = MaterialTheme.typography.labelMedium,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                // Segundo Card - Sensor Cocina
+                Card(
+                    modifier = Modifier
+                        .width(160.dp)
+                        .height(250.dp)
+                        .clickable {
+                            tempCameraUri = createImageUri(context)
+                            editingSensor = sensorCocina
+                            showDialog = true
+                        },
+                    shape = MaterialTheme.shapes.medium,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp)
+                                .background(Color.LightGray),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            sensorCocina.imageUri?.let {
+                                Image(
+                                    painter = rememberAsyncImagePainter(it),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } ?: Text(sensorCocina.name, color = Color.White)
+                        }
+
+                        Text(
+                            "Lectura: $lecturaGasCocina",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+
+                        Button(
+                            onClick = {  },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = VerdeEcologico,
+                                contentColor = Color.White
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(
+                                defaultElevation = 4.dp,
+                                pressedElevation = 8.dp
+                            )
+                        ) {
+                            Text("Ventilar")
+                        }
+
+                        if (sensorCocina.hasLeak) {
+                            Text(
+                                "⚠️ Posible fuga",
+                                color = Color.Red,
+                                style = MaterialTheme.typography.labelMedium,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
             }
         }
     }
 
-        if (showDialog && editingSensor != null) {
+    if (showDialog && editingSensor != null) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
             title = { Text("Seleccionar imagen") },

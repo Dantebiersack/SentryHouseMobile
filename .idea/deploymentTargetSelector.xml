@@ -4,7 +4,7 @@
     <selectionStates>
       <SelectionState runConfigName="SentryHouse.app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-07-24T00:33:14.131724400Z">
+        <DropdownSelection timestamp="2025-08-08T04:53:29.458938800Z">
           <Target type="DEFAULT_BOOT">
             <handle>
               <DeviceId pluginId="PhysicalDevice" identifier="serial=5PNFXKHYCM8HCEOJ" />
