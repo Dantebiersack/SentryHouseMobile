@@ -68,6 +68,16 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
     val historialAgua2 = remember { mutableStateListOf<Float>() }
     val historialAgua3 = remember { mutableStateListOf<Float>() }
 
+    // ✅ Variables de estado para las notificaciones de agua
+    var ciclosBajoUmbral1 by remember { mutableStateOf(0) }
+    var ciclosBajoUmbral2 by remember { mutableStateOf(0) }
+    var ciclosBajoUmbral3 by remember { mutableStateOf(0) }
+
+    var alertaAgua1Enviada by remember { mutableStateOf(false) }
+    var alertaAgua2Enviada by remember { mutableStateOf(false) }
+    var alertaAgua3Enviada by remember { mutableStateOf(false) }
+
+
     // =============== LECTURAS DE GAS Y AGUA =================
     LaunchedEffect(Unit) {
         val apiGas = RetrofitClient.getApi(context)
@@ -98,8 +108,47 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
                 // AGUA
                 val datosAgua = apiAgua.obtenerDatosAgua()
                 if (datosAgua.isNotEmpty()) {
-                    // ✅ Modificación: Recorre cada elemento de la lista y lo añade al historial
                     datosAgua.forEach { dato ->
+                        // Lógica de notificación para el Sensor 1
+                        if (dato.sensor1 <= 1.0f) {
+                            ciclosBajoUmbral1++
+                        } else {
+                            ciclosBajoUmbral1 = 0
+                        }
+                        if (ciclosBajoUmbral1 >= 3 && !alertaAgua1Enviada) {
+                            context.enviarNotificacionAlerta("⚠️ Fuga de Agua detectada - Sensor 1")
+                            alertaAgua1Enviada = true
+                        } else if (dato.sensor1 > 1.0f && alertaAgua1Enviada) {
+                            alertaAgua1Enviada = false
+                        }
+
+                        // Lógica de notificación para el Sensor 2
+                        if (dato.sensor2 <= 1.0f) {
+                            ciclosBajoUmbral2++
+                        } else {
+                            ciclosBajoUmbral2 = 0
+                        }
+                        if (ciclosBajoUmbral2 >= 3 && !alertaAgua2Enviada) {
+                            context.enviarNotificacionAlerta("⚠️ Fuga de Agua detectada - Sensor 2")
+                            alertaAgua2Enviada = true
+                        } else if (dato.sensor2 > 1.0f && alertaAgua2Enviada) {
+                            alertaAgua2Enviada = false
+                        }
+
+                        // Lógica de notificación para el Sensor 3
+                        if (dato.sensor3 <= 1.0f) {
+                            ciclosBajoUmbral3++
+                        } else {
+                            ciclosBajoUmbral3 = 0
+                        }
+                        if (ciclosBajoUmbral3 >= 3 && !alertaAgua3Enviada) {
+                            context.enviarNotificacionAlerta("⚠️ Fuga de Agua detectada - Sensor 3")
+                            alertaAgua3Enviada = true
+                        } else if (dato.sensor3 > 1.0f && alertaAgua3Enviada) {
+                            alertaAgua3Enviada = false
+                        }
+
+                        // ✅ Modificación: Recorre cada elemento de la lista y lo añade al historial
                         if (historialAgua1.size >= 10) historialAgua1.removeAt(0)
                         historialAgua1.add(dato.sensor1)
 
@@ -110,8 +159,6 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
                         historialAgua3.add(dato.sensor3)
                     }
                 }
-
-
             } catch (e: Exception) {
                 e.printStackTrace()
             }
