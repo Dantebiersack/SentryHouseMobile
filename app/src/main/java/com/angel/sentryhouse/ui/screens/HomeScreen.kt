@@ -29,6 +29,8 @@ import com.patrykandpatrick.vico.core.entry.FloatEntry
 import com.patrykandpatrick.vico.core.entry.entryModelOf
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.max
+import kotlin.math.min
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,17 +44,13 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
     var lecturaGasCocina by remember { mutableStateOf(0) }
     var sensorActual by remember { mutableStateOf("Tanque") }
 
+    // Ya no se necesitan los historiales de gas
     val historialGasTanque = remember { mutableStateListOf<Float>() }
     val historialFugaTanque = remember { mutableStateListOf<Float>() }
     val historialGasCocina = remember { mutableStateListOf<Float>() }
     val historialFugaCocina = remember { mutableStateListOf<Float>() }
 
     var alertaEnviada by remember { mutableStateOf(false) }
-
-    val valoresPorDefectoTanque = listOf(70f, 68f, 65f, 63f, 60f)
-    val fugasPorDefectoTanque = listOf(0f, 2f, 5f, 7f, 10f)
-    val valoresPorDefectoCocina = listOf(55f, 52f, 50f, 48f, 45f)
-    val fugasPorDefectoCocina = listOf(3f, 4f, 6f, 8f, 10f)
 
     val (gasPrincipalActual, gasFugaActual) = remember(sensorActual, lecturaGas, lecturaGasCocina) {
         val lecturaActual = if (sensorActual == "Tanque") lecturaGas.toFloat() else lecturaGasCocina.toFloat()
@@ -68,7 +66,7 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
     val historialAgua2 = remember { mutableStateListOf<Float>() }
     val historialAgua3 = remember { mutableStateListOf<Float>() }
 
-    // ✅ Variables de estado para las notificaciones de agua
+    // Variables de estado para las notificaciones de agua
     var ciclosBajoUmbral1 by remember { mutableStateOf(0) }
     var ciclosBajoUmbral2 by remember { mutableStateOf(0) }
     var ciclosBajoUmbral3 by remember { mutableStateOf(0) }
@@ -91,64 +89,32 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
                 lecturaGas = gasResponse.valor
                 lecturaGasCocina = gasCocinaResponse.valor
 
-                if (sensorActual == "Tanque") {
-                    if (historialGasTanque.size >= 10) historialGasTanque.removeAt(0)
-                    historialGasTanque.add(gasPrincipalActual)
-
-                    if (historialFugaTanque.size >= 10) historialFugaTanque.removeAt(0)
-                    historialFugaTanque.add(gasFugaActual)
-                } else {
-                    if (historialGasCocina.size >= 10) historialGasCocina.removeAt(0)
-                    historialGasCocina.add(gasPrincipalActual)
-
-                    if (historialFugaCocina.size >= 10) historialFugaCocina.removeAt(0)
-                    historialFugaCocina.add(gasFugaActual)
-                }
-
                 // AGUA
                 val datosAgua = apiAgua.obtenerDatosAgua()
                 if (datosAgua.isNotEmpty()) {
                     datosAgua.forEach { dato ->
                         // Lógica de notificación para el Sensor 1
-                        if (dato.sensor1 <= 1.0f) {
-                            ciclosBajoUmbral1++
-                        } else {
-                            ciclosBajoUmbral1 = 0
-                        }
+                        if (dato.sensor1 <= 1.0f) ciclosBajoUmbral1++ else ciclosBajoUmbral1 = 0
                         if (ciclosBajoUmbral1 >= 3 && !alertaAgua1Enviada) {
                             context.enviarNotificacionAlerta("⚠️ Fuga de Agua detectada - Sensor 1")
                             alertaAgua1Enviada = true
-                        } else if (dato.sensor1 > 1.0f && alertaAgua1Enviada) {
-                            alertaAgua1Enviada = false
-                        }
+                        } else if (dato.sensor1 > 1.0f && alertaAgua1Enviada) alertaAgua1Enviada = false
 
                         // Lógica de notificación para el Sensor 2
-                        if (dato.sensor2 <= 1.0f) {
-                            ciclosBajoUmbral2++
-                        } else {
-                            ciclosBajoUmbral2 = 0
-                        }
+                        if (dato.sensor2 <= 1.0f) ciclosBajoUmbral2++ else ciclosBajoUmbral2 = 0
                         if (ciclosBajoUmbral2 >= 3 && !alertaAgua2Enviada) {
                             context.enviarNotificacionAlerta("⚠️ Fuga de Agua detectada - Sensor 2")
                             alertaAgua2Enviada = true
-                        } else if (dato.sensor2 > 1.0f && alertaAgua2Enviada) {
-                            alertaAgua2Enviada = false
-                        }
+                        } else if (dato.sensor2 > 1.0f && alertaAgua2Enviada) alertaAgua2Enviada = false
 
                         // Lógica de notificación para el Sensor 3
-                        if (dato.sensor3 <= 1.0f) {
-                            ciclosBajoUmbral3++
-                        } else {
-                            ciclosBajoUmbral3 = 0
-                        }
+                        if (dato.sensor3 <= 1.0f) ciclosBajoUmbral3++ else ciclosBajoUmbral3 = 0
                         if (ciclosBajoUmbral3 >= 3 && !alertaAgua3Enviada) {
                             context.enviarNotificacionAlerta("⚠️ Fuga de Agua detectada - Sensor 3")
                             alertaAgua3Enviada = true
-                        } else if (dato.sensor3 > 1.0f && alertaAgua3Enviada) {
-                            alertaAgua3Enviada = false
-                        }
+                        } else if (dato.sensor3 > 1.0f && alertaAgua3Enviada) alertaAgua3Enviada = false
 
-                        // ✅ Modificación: Recorre cada elemento de la lista y lo añade al historial
+                        // Añade los datos al historial para las gráficas de agua
                         if (historialAgua1.size >= 10) historialAgua1.removeAt(0)
                         historialAgua1.add(dato.sensor1)
 
@@ -176,23 +142,10 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
         }
     }
 
-    // Función para generar modelo VICO
+    // Función para generar modelo VICO para las gráficas de agua
     fun generarModelo(datos: List<Float>) = entryModelOf(
         datos.mapIndexed { index, valor -> FloatEntry(index.toFloat(), valor) }
     )
-
-    val gasEntries by remember(sensorActual) {
-        derivedStateOf {
-            val (principalEntries, fugaEntries) = if (sensorActual == "Tanque") {
-                valoresPorDefectoTanque.mapIndexed { index, valor -> FloatEntry(index.toFloat(), valor) } to
-                        fugasPorDefectoTanque.mapIndexed { index, valor -> FloatEntry(index.toFloat(), valor) }
-            } else {
-                valoresPorDefectoCocina.mapIndexed { index, valor -> FloatEntry(index.toFloat(), valor) } to
-                        fugasPorDefectoCocina.mapIndexed { index, valor -> FloatEntry(index.toFloat(), valor) }
-            }
-            entryModelOf(principalEntries, fugaEntries)
-        }
-    }
 
     // ================== UI ==================
     ModalNavigationDrawer(
@@ -287,56 +240,7 @@ fun HomeScreen(navController: NavController, onToggleTheme: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // ======= Sección Gas =======
-                Text("Consumo de Gas", style = MaterialTheme.typography.titleMedium)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    Button(
-                        onClick = { sensorActual = "Tanque" },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (sensorActual == "Tanque") Color(0xFFFF7043) else MaterialTheme.colorScheme.primary
-                        )
-                    ) { Text("Ver Tanque") }
 
-                    Button(
-                        onClick = { sensorActual = "Cocina" },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (sensorActual == "Cocina") Color(0xFFFF7043) else MaterialTheme.colorScheme.primary
-                        )
-                    ) { Text("Ver Cocina") }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                ProvideChartStyle(m3ChartStyle()) {
-                    Chart(
-                        chart = lineChart(
-                            lines = listOf(
-                                lineSpec(
-                                    lineColor = Color(0xFFFF7043),
-                                    pointConnector = DefaultPointConnector(cubicStrength = 0.5f)
-                                ),
-                                lineSpec(
-                                    lineColor = Color(0xFFFFAB91),
-                                    pointConnector = DefaultPointConnector(cubicStrength = 0.5f)
-                                )
-                            )
-                        ),
-                        model = gasEntries,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("• Consumo normal: ${"%.2f".format(gasPrincipalActual)}%", color = Color(0xFFFF7043))
-                Text("• Posible fuga: ${"%.2f".format(gasFugaActual)}%", color = Color(0xFFFFAB91))
-                if (gasFugaActual > 20) {
-                    Text("⚠️ Posible fuga detectada", color = Color.Red)
-                }
             }
         }
     }
