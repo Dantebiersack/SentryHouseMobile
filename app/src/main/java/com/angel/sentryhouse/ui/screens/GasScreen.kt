@@ -36,14 +36,12 @@ import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
 import androidx.core.app.NotificationCompat
-import com.angel.sentryhouse.R // Asume que R.drawable.ic_launcher_foreground existe
+import com.angel.sentryhouse.R
 
-// Esta función creará y mostrará una notificación
 fun showGasLeakNotification(context: Context, sensorName: String, percentage: Float) {
     val channelId = "gas_leak_channel"
     val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-    // 1. Crear el canal de notificación (solo se necesita una vez)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         val channel = NotificationChannel(
             channelId,
@@ -55,17 +53,15 @@ fun showGasLeakNotification(context: Context, sensorName: String, percentage: Fl
         notificationManager.createNotificationChannel(channel)
     }
 
-    // 2. Construir la notificación
     val notification = NotificationCompat.Builder(context, channelId)
-        .setSmallIcon(R.drawable.ic_launcher_foreground) // Usa el ícono de tu app
+        .setSmallIcon(R.drawable.logosh)
         .setContentTitle("🚨 ¡ALERTA DE FUGA DE GAS! 🚨")
-        .setContentText("Detectada una posible fuga del $sensorName. Nivel: ${"%.2f".format(percentage)}%")
+        .setContentText("Detectada una posible fuga en $sensorName. Nivel: ${"%.2f".format(percentage)}%")
         .setPriority(NotificationCompat.PRIORITY_HIGH)
-        .setAutoCancel(true) // La notificación se cierra al hacer clic
+        .setAutoCancel(true)
         .build()
 
-    // 3. Mostrar la notificación
-    val notificationId = sensorName.hashCode() // ID único para cada sensor
+    val notificationId = sensorName.hashCode()
     notificationManager.notify(notificationId, notification)
 }
 
@@ -76,10 +72,8 @@ data class SensorItem(
     val isClosed: Boolean = false,
     val hasLeak: Boolean = false
 )
+
 val VerdeEcologico = Color(0xFF4CAF50)
-val VerdeOscuroEcologico = Color(0xFF2E7D32)
-val AzulEcologico = Color(0xFF2196F3)
-val AmarilloEcologico = Color(0xFFFFC107)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,23 +85,23 @@ fun GasScreen(navController: NavController) {
     var lecturaGasCocina by remember { mutableStateOf(0) }
     var ventiladorEncendido by remember { mutableStateOf(false) }
 
-    // Variables de estado para el porcentaje y notificaciones
     var fugaTanquePorcentaje by remember { mutableStateOf(0f) }
     var fugaCocinaPorcentaje by remember { mutableStateOf(0f) }
     var notificacionTanqueEnviada by remember { mutableStateOf(false) }
     var notificacionCocinaEnviada by remember { mutableStateOf(false) }
 
-    // Constantes para el cálculo de porcentaje (ajustar según tus sensores)
-    val umbralFuga = 300 // Valor mínimo para considerar fuga
-    val valorMaximo = 4095 // Valor máximo de la lectura del sensor
-    val umbralNotificacion = 30f // Porcentaje para enviar la notificación
+    val umbralFuga = 300
+    val valorMaximo = 4095
 
-    var sensorTanque by remember { mutableStateOf(SensorItem(1, "Sensor Tanque")) }
-    var sensorCocina by remember { mutableStateOf(SensorItem(2, "Sensor Cocina")) }
+    val umbralNotificacionTanque = 40f
+    val umbralNotificacionCocina = 65f
+
+    var sensorTanque by remember { mutableStateOf(SensorItem(1, "Tanque")) }
+    var sensorCocina by remember { mutableStateOf(SensorItem(2, "Cocina")) }
 
     var activeSensorId by remember { mutableStateOf(1) }
 
-    // Cargar imagen guardada si existe
+    // Cargar imágenes guardadas
     LaunchedEffect(Unit) {
         val uriTanque = SensorImageStore.getImageUri(context, "gas", 1).firstOrNull()
         if (uriTanque != null) sensorTanque = sensorTanque.copy(imageUri = uriTanque)
@@ -116,7 +110,7 @@ fun GasScreen(navController: NavController) {
         if (uriCocina != null) sensorCocina = sensorCocina.copy(imageUri = uriCocina)
     }
 
-    // Lectura periódica de ambos sensores y cálculo de porcentaje
+    // Loop lectura periódica
     LaunchedEffect(Unit) {
         while (true) {
             try {
@@ -127,37 +121,33 @@ fun GasScreen(navController: NavController) {
                 val responseCocina = api.obtenerGasCocina()
                 lecturaGasCocina = responseCocina.valor
 
-                // Calcula el porcentaje de fuga para el tanque
+                // Porcentaje tanque
                 val diferenciaTanque = lecturaGas - umbralFuga
-                fugaTanquePorcentaje = if (diferenciaTanque > 0) {
+                fugaTanquePorcentaje = if (diferenciaTanque > 0)
                     min(100f, max(0f, (diferenciaTanque.toFloat() / (valorMaximo - umbralFuga)) * 100f))
-                } else {
-                    0f
-                }
+                else 0f
                 sensorTanque = sensorTanque.copy(hasLeak = fugaTanquePorcentaje > 20)
 
-                // Lógica de notificación para el sensor del tanque
-                if (fugaTanquePorcentaje > umbralNotificacion && !notificacionTanqueEnviada) {
-                    showGasLeakNotification(context, "Sensor Tanque", fugaTanquePorcentaje)
+                // Notificación tanque > 40%
+                if (fugaTanquePorcentaje > umbralNotificacionTanque && !notificacionTanqueEnviada) {
+                    showGasLeakNotification(context, "Tanque", fugaTanquePorcentaje)
                     notificacionTanqueEnviada = true
-                } else if (fugaTanquePorcentaje <= umbralNotificacion) {
+                } else if (fugaTanquePorcentaje <= umbralNotificacionTanque && notificacionTanqueEnviada) {
                     notificacionTanqueEnviada = false
                 }
 
-                // Calcula el porcentaje de fuga para la cocina
+                // Porcentaje cocina
                 val diferenciaCocina = lecturaGasCocina - umbralFuga
-                fugaCocinaPorcentaje = if (diferenciaCocina > 0) {
+                fugaCocinaPorcentaje = if (diferenciaCocina > 0)
                     min(100f, max(0f, (diferenciaCocina.toFloat() / (valorMaximo - umbralFuga)) * 100f))
-                } else {
-                    0f
-                }
+                else 0f
                 sensorCocina = sensorCocina.copy(hasLeak = fugaCocinaPorcentaje > 20)
 
-                // Lógica de notificación para el sensor de la cocina
-                if (fugaCocinaPorcentaje > umbralNotificacion && !notificacionCocinaEnviada) {
-                    showGasLeakNotification(context, "Sensor Cocina", fugaCocinaPorcentaje)
+                // Notificación cocina > 65%
+                if (fugaCocinaPorcentaje > umbralNotificacionCocina && !notificacionCocinaEnviada) {
+                    showGasLeakNotification(context, "Cocina", fugaCocinaPorcentaje)
                     notificacionCocinaEnviada = true
-                } else if (fugaCocinaPorcentaje <= umbralNotificacion) {
+                } else if (fugaCocinaPorcentaje <= umbralNotificacionCocina && notificacionCocinaEnviada) {
                     notificacionCocinaEnviada = false
                 }
 
@@ -199,14 +189,13 @@ fun GasScreen(navController: NavController) {
             }
         }
     }
+
     fun toggleVentilador(api: ApiService, encender: Boolean, scope: CoroutineScope) {
         scope.launch {
             try {
                 val response = api.cambiarEstadoVentilador(ApiService.VentiladorRequest(encender))
                 if (response.isSuccessful) {
                     ventiladorEncendido = encender
-                } else {
-                    // Manejo de error (opcional)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -243,7 +232,7 @@ fun GasScreen(navController: NavController) {
             ) {
                 Spacer(modifier = Modifier.weight(1f))
 
-                // Primer Card - Sensor Tanque
+                // Card Sensor Tanque
                 Card(
                     modifier = Modifier
                         .width(160.dp)
@@ -280,11 +269,11 @@ fun GasScreen(navController: NavController) {
                             } ?: Text(sensorTanque.name, color = Color.White)
                         }
 
-                        // Muestra la lectura en porcentaje
                         Text(
-                            "Fuga: %.2f%%".format(fugaTanquePorcentaje),
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(top = 8.dp)
+                            text = "%.2f%%".format(fugaTanquePorcentaje),
+                            style = MaterialTheme.typography.titleMedium, // tamaño más pequeño que headlineMedium
+                            color = if (sensorTanque.hasLeak) Color.Red else Color.Unspecified,
+                            modifier = Modifier.padding(top = 4.dp)
                         )
 
                         Button(
@@ -292,15 +281,22 @@ fun GasScreen(navController: NavController) {
                                 val api = getApi(context)
                                 toggleVentilador(api, !ventiladorEncendido, scope)
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
                             colors = if (ventiladorEncendido)
                                 ButtonDefaults.buttonColors(containerColor = Color.Red)
                             else
-                                ButtonDefaults.buttonColors(containerColor = VerdeEcologico)
+                                ButtonDefaults.buttonColors(containerColor = VerdeEcologico),
+                            contentPadding = PaddingValues(horizontal = 16.dp),
                         ) {
-                            Text(if (ventiladorEncendido) "Apagar Ventilador" else "Encender Ventilador", style = MaterialTheme.typography.labelLarge)
+                            Text(
+                                text = if (ventiladorEncendido) "Apagar Ventilador" else "Encender Ventilador",
+                                style = MaterialTheme.typography.labelLarge,
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
                         }
-
 
                         if (sensorTanque.hasLeak) {
                             Text(
@@ -315,7 +311,7 @@ fun GasScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.width(16.dp))
 
-                // Segundo Card - Sensor Cocina
+                // Card Sensor Cocina
                 Card(
                     modifier = Modifier
                         .width(160.dp)
@@ -352,11 +348,13 @@ fun GasScreen(navController: NavController) {
                             } ?: Text(sensorCocina.name, color = Color.White)
                         }
 
-                        // Muestra la lectura en porcentaje
+                        // En la Card del Sensor Cocina, igual reemplaza el Text de porcentaje y el Button por:
+
                         Text(
-                            "Fuga: %.2f%%".format(fugaCocinaPorcentaje),
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(top = 8.dp)
+                            text = "%.2f%%".format(fugaCocinaPorcentaje),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = if (sensorCocina.hasLeak) Color.Red else Color.Unspecified,
+                            modifier = Modifier.padding(top = 4.dp)
                         )
 
                         Button(
@@ -364,13 +362,21 @@ fun GasScreen(navController: NavController) {
                                 val api = getApi(context)
                                 toggleVentilador(api, !ventiladorEncendido, scope)
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
                             colors = if (ventiladorEncendido)
                                 ButtonDefaults.buttonColors(containerColor = Color.Red)
                             else
-                                ButtonDefaults.buttonColors(containerColor = VerdeEcologico)
+                                ButtonDefaults.buttonColors(containerColor = VerdeEcologico),
+                            contentPadding = PaddingValues(horizontal = 16.dp),
                         ) {
-                            Text(if (ventiladorEncendido) "Apagar Ventilador" else "Encender Ventilador", style = MaterialTheme.typography.labelLarge)
+                            Text(
+                                text = if (ventiladorEncendido) "Apagar Ventilador" else "Encender Ventilador",
+                                style = MaterialTheme.typography.labelLarge,
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
                         }
 
 
