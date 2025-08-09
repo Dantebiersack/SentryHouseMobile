@@ -12,6 +12,21 @@ interface ApiService {
     @GET("/api/gasCocina")
     suspend fun obtenerGasCocina(): SensorData
 
+    data class VentiladorRequest(val estado: Boolean)
+
+    data class VentiladorResponse(
+        val _id: String,
+        val estado: Boolean,
+        val fecha: String,
+        val __v: Int
+    )
+
+    @GET("/api/ventilador")
+    suspend fun obtenerEstadoVentilador(): VentiladorResponse
+
+    @POST("/api/ventilador")
+    suspend fun cambiarEstadoVentilador(@Body request: VentiladorRequest): Response<VentiladorResponse>
+
 
     data class LoginRequest(
         val correo: String,
